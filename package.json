@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prebuild:android": "expo prebuild --clean --platform android --non-interactive"
   },
   "dependencies": {
     "@types/diff": "^7.0.2",
@@ -32,6 +33,12 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.1",
+    "@expo/config": "^9.0.0",
+    "expo": "^52.0.0",
+    "expo-cli": "^6.17.0",
+    "expo-file-system": "^16.0.0",
+    "expo-document-picker": "^11.0.0",
+    "expo-permissions": "^14.0.0",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
     "vite": "7.3.2",
