@@ -27,6 +27,8 @@ jobs:
       run: |
         npm install @capacitor/core @capacitor/android @capacitor/cli
         npx cap init "AI Coding Agent" "com.yourcompany.aicodingagent"
+        # Видаляємо стару android папку, якщо вона є
+        rm -rf android
         npx cap add android
         npx cap sync
     
