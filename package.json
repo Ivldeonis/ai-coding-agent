@@ -11,6 +11,7 @@
   "dependencies": {
     "@capacitor/android": "^5.7.0",
     "@capacitor/core": "^5.7.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.61.0",
     "@types/diff": "^7.0.2",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/uuid": "^10.0.0",

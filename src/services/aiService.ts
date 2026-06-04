@@ -1,29 +1,59 @@
-import type { AIProvider, ChatMessage, AgentMode } from '../types';
-import { DEMO_FILES } from '../utils/demoData';
+import { ChatMessage, AIProvider } from '../types';
 
-const SYSTEM_PROMPT = `You are DevAgent AI, an expert coding assistant that works with local project files on Android devices.
+const SYSTEM_PROMPT = `You are DevAgent AI, an expert software engineer assistant.
+You have access to the user's project files and can help with coding, debugging, and project management.
+Follow the user's instructions carefully and provide high-quality code and explanations.`;
 
-You have access to the following tools:
-- read_file(path, start_line?, end_line?) — Read file contents
-- write_file(path, content) — Write content to existing file
-- create_file(path, content) — Create a new file
-- delete_file(path) — Delete a file
-- rename_file(old_path, new_path) — Rename/move a file
-- search_files(pattern) — Search files by name pattern (glob or regex)
-- search_code(query, file_pattern?) — Search code content
-- create_folder(path) — Create a folder
-- get_project_tree(max_depth?) — Get project directory tree
-- run_command(command, cwd?) — Run a terminal command (whitelisted: npm, bun, pip, git, python, npx)
+const DEMO_FILES: Record<string, string> = {
+  'src/App.tsx': `import React from 'react';\n\nexport default function App() {\n  return <div>Hello World</div>;\n}`,
+  'package.json': `{\n  "name": "my-app",\n  "version": "1.0.0",\n  "dependencies": {\n    "react": "^18.2.0",\n    "react-dom": "^18.2.0"\n  }\n}`,
+};
 
-When you need to modify files, always explain your changes first, then use the appropriate tool.
-Format tool calls as JSON blocks with the tool name and arguments.
+export async function fetchModels(provider: AIProvider): Promise<string[]> {
+  if (!provider.apiKey && provider.type !== 'local') return [];
 
-Always provide clear explanations and use markdown formatting in your responses.`;
+  try {
+    let url = '';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+    if (provider.type === 'openai') {
+      url = 'https://api.openai.com/v1/models';
+      headers['Authorization'] = `Bearer ${provider.apiKey}`;
+    } else if (provider.type === 'openrouter') {
+      url = 'https://openrouter.ai/api/v1/models';
+      headers['Authorization'] = `Bearer ${provider.apiKey}`;
+    } else if (provider.type === 'gemini') {
+      url = `https://generativelanguage.googleapis.com/v1beta/models?key=${provider.apiKey}`;
+    } else if (provider.type === 'local') {
+      url = `${provider.baseUrl.replace('/v1', '')}/tags`;
+    }
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Failed to fetch models (${response.status}): ${errText}`);
+    }
+
+    const data = await response.json();
+
+    if (provider.type === 'openai' || provider.type === 'openrouter') {
+      return data.data.map((m: any) => m.id).sort();
+    } else if (provider.type === 'gemini') {
+      return data.models.map((m: any) => m.name.replace('models/', '')).sort();
+    } else if (provider.type === 'local') {
+      return data.models.map((m: any) => m.name).sort();
+    }
+
+    return [];
+  } catch (error) {
+    console.error('Error fetching models:', error);
+    throw error;
+  }
+}
 
 export async function sendMessage(
   provider: AIProvider,
   messages: ChatMessage[],
-  _mode: AgentMode,
   onStream: (chunk: string) => void,
   signal?: AbortSignal,
 ): Promise<string> {
@@ -80,8 +110,8 @@ export async function sendMessage(
       throw new Error(`API Error ${response.status}: ${errText}`);
     }
 
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('No response body');
+    if (!response.body) throw new Error('No response body');
+    const reader = response.body.getReader();
 
     const decoder = new TextDecoder();
     let fullText = '';
@@ -122,261 +152,13 @@ export async function sendMessage(
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err;
     console.error('AI API Error:', err);
-    return simulateResponse(messages[messages.length - 1]?.content || '', onStream);
+    // On Android, network errors can sometimes be cryptic, so we provide a better message
+    throw new Error(`AI Service Error: ${(err as Error).message}. Please check your internet connection and API keys.`);
   }
 }
 
 async function simulateResponse(userMsg: string, onStream: (chunk: string) => void): Promise<string> {
-  const lower = userMsg.toLowerCase();
-
-  let response = '';
-
-  if (lower.includes('eslint') || lower.includes('lint')) {
-    response = `## Adding ESLint with Airbnb Configuration 🔧
-
-I'll set up ESLint with the Airbnb configuration for your project. Here's what I'll do:
-
-### Step 1: Create ESLint configuration
-
-I'll create a \`.eslintrc.json\` file:
-
-\`\`\`tool
-{
-  "tool": "create_file",
-  "path": ".eslintrc.json",
-  "content": {
-    "extends": ["airbnb", "airbnb-typescript", "airbnb/hooks"],
-    "parserOptions": {
-      "project": "./tsconfig.json"
-    },
-    "rules": {
-      "react/react-in-jsx-scope": "off",
-      "import/prefer-default-export": "off"
-    }
-  }
-}
-\`\`\`
-
-### Step 2: Update package.json
-
-Adding the lint script and dev dependencies:
-
-\`\`\`tool
-{
-  "tool": "write_file",
-  "path": "package.json",
-  "changes": "Add lint script and ESLint dependencies"
-}
-\`\`\`
-
-### Step 3: Install dependencies
-
-\`\`\`bash
-npm install -D eslint @typescript-eslint/parser @typescript-eslint/eslint-plugin eslint-config-airbnb eslint-config-airbnb-typescript eslint-plugin-import eslint-plugin-jsx-a11y eslint-plugin-react eslint-plugin-react-hooks
-\`\`\`
-
-Would you like me to apply these changes?`;
-  } else if (lower.includes('error') || lower.includes('stack') || lower.includes('bug') || lower.includes('fix')) {
-    response = `## Error Analysis 🔍
-
-Let me analyze this error and find the root cause.
-
-### Analysis
-
-I'll first read the relevant files to understand the context:
-
-\`\`\`tool
-{
-  "tool": "read_file",
-  "path": "src/App.tsx"
-}
-\`\`\`
-
-### Root Cause
-
-Based on the error, the issue is likely in the component rendering logic. Here are my findings:
-
-1. **Missing null check** — The component doesn't handle the case when data is \`undefined\`
-2. **Type mismatch** — The prop type doesn't match the expected interface
-
-### Suggested Fix
-
-\`\`\`typescript
-// Before
-const data = useData();
-return <Display items={data.items} />;
-
-// After
-const data = useData();
-if (!data) return <Loading />;
-return <Display items={data.items ?? []} />;
-\`\`\`
-
-Would you like me to apply this fix?`;
-  } else if (lower.includes('help') || lower.includes('what can')) {
-    response = `## DevAgent AI — What I Can Do 🤖
-
-I'm your AI coding assistant with full project access. Here's what I can help with:
-
-### 📁 File Operations
-- **Read, create, edit, delete** files in your project
-- **Rename and move** files between directories
-- **Search** by filename or code content
-
-### 🔧 Code Assistance
-- **Write new features** across multiple files
-- **Refactor** existing code
-- **Fix bugs** from error logs and stack traces
-- **Add configurations** (ESLint, Prettier, TypeScript, etc.)
-
-### 🏗️ Project Management
-- **Understand project structure** automatically
-- **Run commands** (npm, git, python, etc.)
-- **Generate boilerplate** for components, hooks, utilities
-
-### 🐛 Debugging
-- Paste a **stack trace** and I'll find the source
-- Paste **error logs** for automatic analysis
-- I can suggest and apply fixes directly
-
-### 💡 Agent Modes
-| Mode | Description |
-|------|-------------|
-| **Ask** | I only answer questions, no file changes |
-| **Edit** | I can modify files with your approval |
-| **Agent** | I autonomously plan and execute multi-step tasks |
-
----
-
-Try asking me something like:
-- *"Add a dark mode toggle to the app"*
-- *"Refactor the auth hook to use React Query"*
-- *"Create a new API service module"*`;
-  } else if (lower.includes('component') || lower.includes('create') || lower.includes('add')) {
-    response = `## Creating New Component 🧩
-
-I'll create the component for you. Let me plan the implementation:
-
-### Files to create/modify:
-
-1. **New component file**
-2. **Update imports** in parent component
-3. **Add styles** if needed
-
-### Implementation
-
-\`\`\`tsx
-// src/components/NewComponent.tsx
-import React, { useState } from 'react';
-
-interface Props {
-  title: string;
-  onAction?: () => void;
-}
-
-export function NewComponent({ title, onAction }: Props) {
-  const [isActive, setIsActive] = useState(false);
-
-  return (
-    <div className="rounded-lg border p-4 transition-all hover:shadow-md">
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <button
-        onClick={() => {
-          setIsActive(!isActive);
-          onAction?.();
-        }}
-        className={cn(
-          "mt-2 px-4 py-2 rounded-md transition-colors",
-          isActive ? "bg-blue-600 text-white" : "bg-gray-100"
-        )}
-      >
-        {isActive ? 'Active' : 'Activate'}
-      </button>
-    </div>
-  );
-}
-\`\`\`
-
-\`\`\`tool
-{
-  "tool": "create_file",
-  "path": "src/components/NewComponent.tsx",
-  "content": "... (as shown above)"
-}
-\`\`\`
-
-Shall I apply this change?`;
-  } else if (lower.includes('tree') || lower.includes('structure') || lower.includes('project')) {
-    response = `## Project Structure 📁
-
-\`\`\`
-my-app/
-├── src/
-│   ├── App.tsx              # Main application component
-│   ├── main.tsx             # Entry point
-│   ├── index.css            # Global styles
-│   ├── components/
-│   │   ├── Header.tsx       # Header component
-│   │   └── Button.tsx       # Reusable button
-│   └── hooks/
-│       └── useAuth.ts       # Authentication hook
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-├── .gitignore
-└── README.md
-\`\`\`
-
-### Summary
-- **Framework:** React + TypeScript
-- **Bundler:** Vite
-- **Components:** 2 (Header, Button)
-- **Hooks:** 1 (useAuth)
-- **Total files:** 10
-
-The project follows a standard React + Vite structure with TypeScript.`;
-  } else {
-    response = `## Let me help you with that! 🚀
-
-I've analyzed your request. Here's my approach:
-
-### Understanding
-${userMsg}
-
-### Plan
-1. **Analyze** the current project structure
-2. **Identify** relevant files to modify
-3. **Implement** the changes with proper TypeScript types
-4. **Test** the implementation
-
-### Next Steps
-
-I'll need to read some files first to understand the context:
-
-\`\`\`tool
-{
-  "tool": "get_project_tree",
-  "max_depth": 3
-}
-\`\`\`
-
-\`\`\`tool
-{
-  "tool": "read_file",
-  "path": "src/App.tsx"
-}
-\`\`\`
-
-Based on the project structure, I can see this is a **React + TypeScript** project using **Vite**.
-
-Would you like me to proceed with the implementation? I can:
-- Create new files
-- Modify existing code
-- Run terminal commands
-- Set up configurations
-
-Just let me know the details!`;
-  }
+  const response = `## DevAgent AI (Demo Mode) 🤖\n\nYou asked: "${userMsg}"\n\nTo enable full AI features, please provide a valid API key in the settings. In demo mode, I can only provide simulated responses.`;
 
   // Simulate streaming
   const words = response.split(' ');

@@ -79,6 +79,7 @@ export interface TerminalLine {
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
+  language: 'en' | 'ru';
   autoConfirm: boolean;
   autoSaveInterval: number;
   maxRecentProjects: number;
@@ -89,6 +90,7 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
+  language: 'ru',
   autoConfirm: false,
   autoSaveInterval: 1000,
   maxRecentProjects: 10,
