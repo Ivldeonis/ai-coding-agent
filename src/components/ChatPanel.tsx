@@ -1,36 +1,47 @@
 import { useState, useRef, useEffect } from 'react';
 import { useStore } from '../store';
 import { sendMessage } from '../services/aiService';
+import {
+  Send, Bot, User, Paperclip, StopCircle,
+  Copy, Check, FileText, ImageIcon, AlertTriangle,
+  Sparkles, Zap, ShieldCheck, ChevronDown
+} from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import {
-  Send, StopCircle, Paperclip, Bot, User,
-  Sparkles, Copy, Check, Trash2,
-  Zap, MessageSquare, PenLine,
-  Image as ImageIcon, FileText, AlertTriangle
-} from 'lucide-react';
 
 export function ChatPanel() {
   const {
-    messages, isGenerating, agentMode, setAgentMode,
-    addMessage, updateMessage, setIsGenerating,
-    clearMessages, providers, activeProviderId,
+    messages, addMessage, updateMessage, isGenerating,
+    setIsGenerating, streamingMessageId, setStreamingMessageId,
+    providers, activeProviderId, agentMode, setAgentMode, t
   } = useStore();
 
   const [input, setInput] = useState('');
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showModeMenu, setShowModeMenu] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const activeProvider = providers.find((p) => p.id === activeProviderId);
 
-  useEffect(() => {
+  const modeConfig = {
+    ask: { icon: Sparkles, label: t('chat.modes.ask'), color: 'text-[#89b4fa]', bg: 'bg-[#89b4fa]/10' },
+    edit: { icon: Zap, label: t('chat.modes.edit'), color: 'text-[#fab387]', bg: 'bg-[#fab387]/10' },
+    agent: { icon: ShieldCheck, label: t('chat.modes.agent'), color: 'text-[#a6e3a1]', bg: 'bg-[#a6e3a1]/10' },
+  };
+
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, streamingMessageId]);
 
   const handleSend = async () => {
     if (!input.trim() || isGenerating) return;
@@ -40,41 +51,42 @@ export function ChatPanel() {
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
     addMessage({ role: 'user', content: userContent });
-    setIsGenerating(true);
 
-    const assistantId = addMessage({ role: 'assistant', content: '', isStreaming: true });
-    abortRef.current = new AbortController();
+    if (!activeProvider) {
+      addMessage({ role: 'assistant', content: 'No AI provider selected. Please go to settings to configure a provider.' });
+      return;
+    }
+
+    setIsGenerating(true);
+    const assistantMsgId = addMessage({ role: 'assistant', content: '', isStreaming: true });
+    setStreamingMessageId(assistantMsgId);
+
+    abortControllerRef.current = new AbortController();
 
     try {
-      const allMessages = [...useStore.getState().messages.filter(m => m.id !== assistantId)];
-      const result = await sendMessage(
-        activeProvider || providers[0],
-        allMessages,
-        agentMode,
+      const allMessages = useStore.getState().messages;
+      await sendMessage(
+        activeProvider,
+        allMessages.slice(0, -1), // send context up to new user message
         (chunk) => {
-          updateMessage(assistantId, { content: chunk });
+          updateMessage(assistantMsgId, { content: chunk });
         },
-        abortRef.current.signal,
+        abortControllerRef.current.signal
       );
-      updateMessage(assistantId, { content: result, isStreaming: false });
     } catch (err) {
-      if ((err as Error).name === 'AbortError') {
-        updateMessage(assistantId, { isStreaming: false });
-      } else {
-        updateMessage(assistantId, {
-          content: `❌ Error: ${(err as Error).message}`,
-          isStreaming: false,
-        });
+      if ((err as Error).name !== 'AbortError') {
+        updateMessage(assistantMsgId, { content: 'Error: ' + (err as Error).message });
       }
     } finally {
+      updateMessage(assistantMsgId, { isStreaming: false });
       setIsGenerating(false);
-      abortRef.current = null;
+      setStreamingMessageId(null);
+      abortControllerRef.current = null;
     }
   };
 
   const handleStop = () => {
-    abortRef.current?.abort();
-    setIsGenerating(false);
+    abortControllerRef.current?.abort();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -84,8 +96,8 @@ export function ChatPanel() {
     }
   };
 
-  const handleCopy = (id: string, content: string) => {
-    navigator.clipboard.writeText(content);
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -93,14 +105,8 @@ export function ChatPanel() {
   const handleTextareaInput = () => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
-  };
-
-  const modeConfig = {
-    ask: { icon: MessageSquare, label: 'Ask', color: 'text-[#a6e3a1]', bg: 'bg-[#a6e3a1]/10' },
-    edit: { icon: PenLine, label: 'Edit', color: 'text-[#89b4fa]', bg: 'bg-[#89b4fa]/10' },
-    agent: { icon: Zap, label: 'Agent', color: 'text-[#fab387]', bg: 'bg-[#fab387]/10' },
   };
 
   return (
@@ -108,37 +114,49 @@ export function ChatPanel() {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#313244]">
         <div className="flex items-center gap-2">
-          <Sparkles size={16} className="text-[#f9e2af]" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#a6adc8]">
-            AI Chat
-          </span>
+          <Bot size={18} className="text-[#89b4fa]" />
+          <span className="text-[13px] font-semibold text-[#cdd6f4]">DevAgent AI</span>
         </div>
-        <div className="flex items-center gap-1">
-          {/* Agent Mode Toggle */}
-          <div className="flex bg-[#1e1e2e] rounded-lg p-0.5 border border-[#313244]">
-            {(Object.entries(modeConfig) as [string, typeof modeConfig.ask][]).map(([mode, cfg]) => {
-              const Icon = cfg.icon;
-              return (
-                <button
-                  key={mode}
-                  onClick={() => setAgentMode(mode as typeof agentMode)}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors ${
-                    agentMode === mode ? `${cfg.bg} ${cfg.color}` : 'text-[#6c7086] hover:text-[#cdd6f4]'
-                  }`}
-                >
-                  <Icon size={12} />
-                  {cfg.label}
-                </button>
-              );
-            })}
-          </div>
+
+        <div className="relative">
           <button
-            onClick={clearMessages}
-            className="p-1.5 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#f38ba8] transition-colors"
-            title="Clear chat"
+            onClick={() => setShowModeMenu(!showModeMenu)}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${modeConfig[agentMode].bg} ${modeConfig[agentMode].color}`}
           >
-            <Trash2 size={14} />
+            {(() => {
+              const Icon = modeConfig[agentMode].icon;
+              return <Icon size={12} />;
+            })()}
+            {modeConfig[agentMode].label}
+            <ChevronDown size={10} />
           </button>
+
+          {showModeMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowModeMenu(false)} />
+              <div className="absolute top-full right-0 mt-1 bg-[#1e1e2e] border border-[#313244] rounded-lg shadow-xl py-1 min-w-[120px] z-50">
+                {(['ask', 'edit', 'agent'] as const).map((mode) => {
+                  const config = {
+                    ask: { icon: Sparkles, label: t('chat.modes.ask') },
+                    edit: { icon: Zap, label: t('chat.modes.edit') },
+                    agent: { icon: ShieldCheck, label: t('chat.modes.agent') },
+                  }[mode];
+                  const Icon = config.icon;
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() => { setAgentMode(mode); setShowModeMenu(false); }}
+                      className={`flex items-center gap-2 w-full px-3 py-1.5 text-[12px] transition-colors ${
+                        agentMode === mode ? 'text-[#89b4fa] bg-[#313244]' : 'text-[#6c7086] hover:text-[#cdd6f4] hover:bg-[#313244]'
+                      }`}
+                    >
+                      <Icon size={12} /> {config.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -308,7 +326,7 @@ export function ChatPanel() {
             value={input}
             onChange={(e) => { setInput(e.target.value); handleTextareaInput(); }}
             onKeyDown={handleKeyDown}
-            placeholder={`Ask DevAgent AI (${modeConfig[agentMode].label} mode)...`}
+            placeholder={t('chat.inputPlaceholder')}
             rows={1}
             className="flex-1 bg-transparent text-[13px] text-[#cdd6f4] placeholder-[#6c7086] py-2.5 pr-2 resize-none focus:outline-none max-h-[200px]"
           />

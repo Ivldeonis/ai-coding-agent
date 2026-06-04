@@ -1,28 +1,24 @@
 import { useState } from 'react';
 import { useStore } from '../store';
-
+import { fetchModels } from '../services/aiService';
 import {
-  Settings, Key, Server, Cpu, Globe, Shield,
+  Settings, Bot, Palette, Shield,
   Plus, Trash2, Check, Eye, EyeOff,
-  ToggleLeft, ToggleRight, Palette, Monitor
+  Monitor, Key, ToggleLeft, ToggleRight,
+  RefreshCw, Globe
 } from 'lucide-react';
 
 export function SettingsPanel() {
   const {
-    settings, updateSettings,
-    providers, activeProviderId,
-    updateProvider, removeProvider, addProvider, setActiveProvider,
+    providers, activeProviderId, updateProvider,
+    removeProvider, addProvider, setActiveProvider,
+    settings, updateSettings, t
   } = useStore();
 
   const [activeSection, setActiveSection] = useState<'providers' | 'general' | 'security'>('providers');
-  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
-
-  const sections = [
-    { id: 'providers' as const, icon: Server, label: 'AI Providers' },
-    { id: 'general' as const, icon: Settings, label: 'General' },
-    { id: 'security' as const, icon: Shield, label: 'Security' },
-  ];
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [isFetchingModels, setIsFetchingModels] = useState<string | null>(null);
 
   const toggleKeyVisibility = (id: string) => {
     setShowKeys(prev => ({ ...prev, [id]: !prev[id] }));
@@ -35,57 +31,80 @@ export function SettingsPanel() {
       baseUrl: 'https://api.openai.com/v1',
       apiKey: '',
       model: 'gpt-4o',
+      models: ['gpt-4o', 'gpt-4o-mini']
     });
+  };
+
+  const handleFetchModels = async (id: string) => {
+    const provider = providers.find(p => p.id === id);
+    if (!provider || !provider.apiKey) return;
+
+    setIsFetchingModels(id);
+    try {
+      const models = await fetchModels(provider);
+      if (models.length > 0) {
+        updateProvider(id, { models, model: models[0] });
+      }
+    } catch (error) {
+      console.error('Failed to fetch models:', error);
+    } finally {
+      setIsFetchingModels(null);
+    }
   };
 
   return (
     <div className="flex flex-col h-full bg-[#181825]">
-      <div className="px-3 py-2 border-b border-[#313244]">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#a6adc8]">
-          Settings
-        </span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#313244]">
+        <h2 className="text-[14px] font-semibold text-[#cdd6f4] flex items-center gap-2">
+          <Settings size={16} /> {t('common.settings')}
+        </h2>
       </div>
 
-      {/* Section tabs */}
-      <div className="flex border-b border-[#313244]">
-        {sections.map(({ id, icon: Icon, label }) => (
-          <button
-            key={id}
-            onClick={() => setActiveSection(id)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-[12px] transition-colors border-b-2 ${
-              activeSection === id
-                ? 'text-[#89b4fa] border-[#89b4fa]'
-                : 'text-[#6c7086] border-transparent hover:text-[#cdd6f4]'
-            }`}
-          >
-            <Icon size={13} />
-            {label}
-          </button>
-        ))}
+      <div className="flex border-b border-[#313244] px-2">
+        <button
+          onClick={() => setActiveSection('providers')}
+          className={`px-3 py-2 text-[12px] border-b-2 transition-colors ${
+            activeSection === 'providers'
+              ? 'text-[#89b4fa] border-[#89b4fa]'
+              : 'text-[#6c7086] border-transparent hover:text-[#cdd6f4]'
+          }`}
+        >
+          {t('settings.aiProviders')}
+        </button>
+        <button
+          onClick={() => setActiveSection('general')}
+          className={`px-3 py-2 text-[12px] border-b-2 transition-colors ${
+            activeSection === 'general'
+              ? 'text-[#89b4fa] border-[#89b4fa]'
+              : 'text-[#6c7086] border-transparent hover:text-[#cdd6f4]'
+          }`}
+        >
+          {t('settings.general')}
+        </button>
+        <button
+          onClick={() => setActiveSection('security')}
+          className={`px-3 py-2 text-[12px] border-b-2 transition-colors ${
+            activeSection === 'security'
+              ? 'text-[#89b4fa] border-[#89b4fa]'
+              : 'text-[#6c7086] border-transparent hover:text-[#cdd6f4]'
+          }`}
+        >
+          {t('settings.security')}
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {activeSection === 'providers' && (
           <>
             {providers.map((provider) => (
-              <div
-                key={provider.id}
-                className={`p-3 rounded-lg border transition-colors ${
-                  provider.id === activeProviderId
-                    ? 'bg-[#89b4fa]/5 border-[#89b4fa]/30'
-                    : 'bg-[#1e1e2e] border-[#313244]'
-                }`}
-              >
+              <div key={provider.id} className="bg-[#1e1e2e] rounded-lg border border-[#313244] p-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    {provider.type === 'openai' && <Globe size={14} className="text-[#a6e3a1]" />}
-                    {provider.type === 'openrouter' && <Server size={14} className="text-[#cba6f7]" />}
-                    {provider.type === 'gemini' && <Sparkle className="text-[#89b4fa]" />}
-                    {provider.type === 'local' && <Cpu size={14} className="text-[#fab387]" />}
-                    <span className="text-[13px] font-medium text-[#cdd6f4]">{provider.name}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#313244] text-[#6c7086]">
-                      {provider.type}
-                    </span>
+                    <Bot size={16} className="text-[#89b4fa]" />
+                    <div>
+                      <h3 className="text-[13px] font-medium text-[#cdd6f4]">{provider.name}</h3>
+                      <p className="text-[11px] text-[#6c7086]">{provider.model}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     {provider.id !== activeProviderId && (
@@ -93,12 +112,12 @@ export function SettingsPanel() {
                         onClick={() => setActiveProvider(provider.id)}
                         className="flex items-center gap-1 px-2 py-0.5 text-[11px] bg-[#89b4fa]/10 text-[#89b4fa] rounded hover:bg-[#89b4fa]/20"
                       >
-                        <Check size={10} /> Use
+                        <Check size={10} /> {t('common.use')}
                       </button>
                     )}
                     {provider.id === activeProviderId && (
                       <span className="flex items-center gap-1 px-2 py-0.5 text-[11px] bg-[#a6e3a1]/10 text-[#a6e3a1] rounded">
-                        <Check size={10} /> Active
+                        <Check size={10} /> {t('common.active')}
                       </span>
                     )}
                     <button
@@ -113,7 +132,7 @@ export function SettingsPanel() {
                 {editingProvider === provider.id && (
                   <div className="space-y-2 mt-3 pt-3 border-t border-[#313244]">
                     <div>
-                      <label className="text-[11px] text-[#6c7086] mb-1 block">Name</label>
+                      <label className="text-[11px] text-[#6c7086] mb-1 block">{t('settings.name')}</label>
                       <input
                         type="text"
                         value={provider.name}
@@ -122,7 +141,7 @@ export function SettingsPanel() {
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] text-[#6c7086] mb-1 block">Base URL</label>
+                      <label className="text-[11px] text-[#6c7086] mb-1 block">{t('settings.baseUrl')}</label>
                       <input
                         type="text"
                         value={provider.baseUrl}
@@ -131,7 +150,7 @@ export function SettingsPanel() {
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] text-[#6c7086] mb-1 block">API Key</label>
+                      <label className="text-[11px] text-[#6c7086] mb-1 block">{t('settings.apiKey')}</label>
                       <div className="flex items-center gap-1">
                         <input
                           type={showKeys[provider.id] ? 'text' : 'password'}
@@ -149,22 +168,32 @@ export function SettingsPanel() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-[11px] text-[#6c7086] mb-1 block">Model</label>
-                      <select
-                        value={provider.model}
-                        onChange={(e) => updateProvider(provider.id, { model: e.target.value })}
-                        className="w-full bg-[#11111b] border border-[#313244] rounded px-2 py-1.5 text-[12px] text-[#cdd6f4] focus:border-[#89b4fa] focus:outline-none"
-                      >
-                        {provider.models?.map((m) => (
-                          <option key={m} value={m}>{m}</option>
-                        ))}
-                      </select>
+                      <label className="text-[11px] text-[#6c7086] mb-1 block">{t('settings.model')}</label>
+                      <div className="flex gap-1">
+                        <select
+                          value={provider.model}
+                          onChange={(e) => updateProvider(provider.id, { model: e.target.value })}
+                          className="flex-1 bg-[#11111b] border border-[#313244] rounded px-2 py-1.5 text-[12px] text-[#cdd6f4] focus:border-[#89b4fa] focus:outline-none"
+                        >
+                          {provider.models?.map((m) => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleFetchModels(provider.id)}
+                          disabled={isFetchingModels === provider.id || !provider.apiKey}
+                          className="p-1.5 bg-[#89b4fa]/10 text-[#89b4fa] rounded hover:bg-[#89b4fa]/20 disabled:opacity-50"
+                          title={t('settings.fetchModels')}
+                        >
+                          <RefreshCw size={14} className={isFetchingModels === provider.id ? 'animate-spin' : ''} />
+                        </button>
+                      </div>
                     </div>
                     <button
                       onClick={() => removeProvider(provider.id)}
                       className="flex items-center gap-1 text-[11px] text-[#f38ba8] hover:text-[#f38ba8]/80 mt-2"
                     >
-                      <Trash2 size={11} /> Remove provider
+                      <Trash2 size={11} /> {t('settings.removeProvider')}
                     </button>
                   </div>
                 )}
@@ -175,7 +204,7 @@ export function SettingsPanel() {
               onClick={handleAddProvider}
               className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-[#313244] text-[12px] text-[#6c7086] hover:text-[#cdd6f4] hover:border-[#89b4fa] transition-colors"
             >
-              <Plus size={14} /> Add provider
+              <Plus size={14} /> {t('settings.addProvider')}
             </button>
           </>
         )}
@@ -184,7 +213,28 @@ export function SettingsPanel() {
           <div className="space-y-4">
             <div>
               <label className="flex items-center gap-2 text-[13px] text-[#cdd6f4] mb-2">
-                <Palette size={14} /> Theme
+                <Globe size={14} /> Language / Язык
+              </label>
+              <div className="flex gap-2">
+                {(['en', 'ru'] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => updateSettings({ language: lang })}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] border transition-colors ${
+                      settings.language === lang
+                        ? 'bg-[#89b4fa]/10 border-[#89b4fa]/30 text-[#89b4fa]'
+                        : 'bg-[#1e1e2e] border-[#313244] text-[#6c7086] hover:text-[#cdd6f4]'
+                    }`}
+                  >
+                    {lang === 'en' ? 'English' : 'Русский'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-[13px] text-[#cdd6f4] mb-2">
+                <Palette size={14} /> {t('settings.theme')}
               </label>
               <div className="flex gap-2">
                 {(['dark', 'light', 'system'] as const).map((theme) => (
@@ -206,7 +256,7 @@ export function SettingsPanel() {
 
             <div>
               <label className="text-[13px] text-[#cdd6f4] mb-2 block">
-                Font Size: {settings.fontSize}px
+                {t('settings.fontSize')}: {settings.fontSize}px
               </label>
               <input
                 type="range"
@@ -220,7 +270,7 @@ export function SettingsPanel() {
 
             <div>
               <label className="text-[13px] text-[#cdd6f4] mb-2 block">
-                Auto-save delay: {settings.autoSaveInterval}ms
+                {t('settings.autoSave')}: {settings.autoSaveInterval}ms
               </label>
               <input
                 type="range"
@@ -239,8 +289,8 @@ export function SettingsPanel() {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-[#1e1e2e] rounded-lg border border-[#313244]">
               <div>
-                <p className="text-[13px] text-[#cdd6f4]">Auto-confirm changes</p>
-                <p className="text-[11px] text-[#6c7086] mt-0.5">Skip diff confirmation for AI changes</p>
+                <p className="text-[13px] text-[#cdd6f4]">{t('settings.autoConfirm')}</p>
+                <p className="text-[11px] text-[#6c7086] mt-0.5">{t('settings.autoConfirmDesc')}</p>
               </div>
               <button
                 onClick={() => updateSettings({ autoConfirm: !settings.autoConfirm })}
@@ -265,7 +315,7 @@ export function SettingsPanel() {
             <div>
               <label className="text-[13px] text-[#cdd6f4] mb-2 block">
                 <Key size={14} className="inline mr-1" />
-                Terminal whitelist
+                {t('settings.terminalWhitelist')}
               </label>
               <div className="flex flex-wrap gap-1">
                 {settings.terminalWhitelist.map((cmd) => (
@@ -278,7 +328,7 @@ export function SettingsPanel() {
 
             <div>
               <label className="text-[13px] text-[#cdd6f4] mb-2 block">
-                Safe commands (no confirmation)
+                {t('settings.safeCommands')}
               </label>
               <div className="flex flex-wrap gap-1">
                 {settings.safeCommands.map((cmd) => (
@@ -292,13 +342,5 @@ export function SettingsPanel() {
         )}
       </div>
     </div>
-  );
-}
-
-function Sparkle({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z" />
-    </svg>
   );
 }

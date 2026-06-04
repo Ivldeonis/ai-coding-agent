@@ -1,10 +1,15 @@
 import { create } from 'zustand';
-import type { ChatMessage, FileNode, EditorTab, DiffChange, AIProvider, AgentMode, AppSettings, TerminalLine, ProjectMemory } from './types';
-import { DEFAULT_SETTINGS } from './types';
 import { v4 as uuid } from 'uuid';
+import {
+  ChatMessage, FileNode, EditorTab, DiffChange,
+  AIProvider, AgentMode, TerminalLine, AppSettings,
+  ProjectMemory, DEFAULT_SETTINGS
+} from './types';
+import { en } from './locales/en';
+import { ru } from './locales/ru';
 
 interface AppState {
-  // UI State
+  // UI
   activePanel: 'chat' | 'explorer' | 'search' | 'terminal' | 'settings' | 'memory';
   sidebarOpen: boolean;
   bottomPanelOpen: boolean;
@@ -85,6 +90,8 @@ interface AppState {
 
   updateSettings: (updates: Partial<AppSettings>) => void;
   updateMemory: (updates: Partial<ProjectMemory>) => void;
+
+  t: (path: string) => string;
 }
 
 const DEMO_FILE_TREE: FileNode[] = [
@@ -113,7 +120,9 @@ const DEMO_FILE_TREE: FileNode[] = [
   { name: 'README.md', path: 'README.md', type: 'file' },
 ];
 
-export const useStore = create<AppState>((set) => ({
+const locales: Record<string, any> = { en, ru };
+
+export const useStore = create<AppState>((set, get) => ({
   // UI
   activePanel: 'chat',
   sidebarOpen: true,
@@ -259,6 +268,21 @@ export const useStore = create<AppState>((set) => ({
 
   updateSettings: (updates) => set((s) => ({ settings: { ...s.settings, ...updates } })),
   updateMemory: (updates) => set((s) => ({ projectMemory: { ...s.projectMemory, ...updates } })),
+
+  t: (path: string) => {
+    const { language } = get().settings;
+    const locale = locales[language] || locales.en;
+    const parts = path.split('.');
+    let result = locale;
+    for (const part of parts) {
+      if (result && typeof result === 'object' && part in result) {
+        result = result[part];
+      } else {
+        return path;
+      }
+    }
+    return typeof result === 'string' ? result : path;
+  }
 }));
 
 function toggleNode(nodes: FileNode[], path: string): FileNode[] {

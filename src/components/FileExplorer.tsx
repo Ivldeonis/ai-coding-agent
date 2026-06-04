@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 function FileTreeNode({ node, depth = 0 }: { node: FileNode; depth?: number }) {
-  const { toggleFolder, openTab } = useStore();
+  const { toggleFolder, openTab, t } = useStore();
   const [showMenu, setShowMenu] = useState(false);
 
   const handleClick = () => {
@@ -79,17 +79,17 @@ function FileTreeNode({ node, depth = 0 }: { node: FileNode; depth?: number }) {
             <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
             <div className="absolute right-2 top-full z-50 bg-[#1e1e2e] border border-[#313244] rounded-lg shadow-xl py-1 min-w-[160px]">
               <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[13px] text-[#cdd6f4] hover:bg-[#313244]" onClick={() => setShowMenu(false)}>
-                <Edit3 size={13} /> Rename
+                <Edit3 size={13} /> {t('common.rename')}
               </button>
               <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[13px] text-[#cdd6f4] hover:bg-[#313244]" onClick={() => setShowMenu(false)}>
-                <Copy size={13} /> Copy
+                <Copy size={13} /> {t('common.copy')}
               </button>
               <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[13px] text-[#cdd6f4] hover:bg-[#313244]" onClick={() => setShowMenu(false)}>
-                <Download size={13} /> Add to context
+                <Download size={13} /> {t('explorer.addToContext')}
               </button>
               <div className="border-t border-[#313244] my-1" />
               <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[13px] text-[#f38ba8] hover:bg-[#313244]" onClick={() => setShowMenu(false)}>
-                <Trash2 size={13} /> Delete
+                <Trash2 size={13} /> {t('common.delete')}
               </button>
             </div>
           </>
@@ -103,7 +103,7 @@ function FileTreeNode({ node, depth = 0 }: { node: FileNode; depth?: number }) {
 }
 
 export function FileExplorer() {
-  const { fileTree, currentProjectName } = useStore();
+  const { fileTree, currentProjectName, t } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
 
   const filterTree = (nodes: FileNode[], query: string): FileNode[] => {
@@ -128,16 +128,16 @@ export function FileExplorer() {
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#313244]">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-[#a6adc8]">
-          Explorer — {currentProjectName}
+          {t('common.explorer')} — {currentProjectName}
         </span>
         <div className="flex gap-1">
-          <button className="p-1 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]" title="New file">
+          <button className="p-1 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]" title={t('explorer.newFile')}>
             <FilePlus size={14} />
           </button>
-          <button className="p-1 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]" title="New folder">
+          <button className="p-1 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]" title={t('explorer.newFolder')}>
             <FolderPlus size={14} />
           </button>
-          <button className="p-1 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]" title="Refresh">
+          <button className="p-1 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]" title={t('explorer.refresh')}>
             <RefreshCw size={14} />
           </button>
         </div>
@@ -147,7 +147,7 @@ export function FileExplorer() {
       <div className="px-2 py-1.5">
         <input
           type="text"
-          placeholder="Search files..."
+          placeholder={t('explorer.searchFiles')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full px-2 py-1 text-[12px] bg-[#1e1e2e] border border-[#313244] rounded text-[#cdd6f4] placeholder-[#6c7086] focus:border-[#89b4fa] focus:outline-none"

@@ -4,17 +4,17 @@ import {
   Settings, Brain, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
-const panels = [
-  { id: 'chat' as const, icon: MessageSquare, label: 'AI Chat' },
-  { id: 'explorer' as const, icon: FolderTree, label: 'Explorer' },
-  { id: 'search' as const, icon: Search, label: 'Search' },
-  { id: 'terminal' as const, icon: Terminal, label: 'Terminal' },
-  { id: 'memory' as const, icon: Brain, label: 'Project Memory' },
-  { id: 'settings' as const, icon: Settings, label: 'Settings' },
-];
-
 export function Sidebar() {
-  const { activePanel, setActivePanel, sidebarOpen, setSidebarOpen } = useStore();
+  const { activePanel, setActivePanel, sidebarOpen, setSidebarOpen, t } = useStore();
+
+  const panels = [
+    { id: 'chat' as const, icon: MessageSquare, label: t('sidebar.chat') },
+    { id: 'explorer' as const, icon: FolderTree, label: t('sidebar.explorer') },
+    { id: 'search' as const, icon: Search, label: t('sidebar.search') },
+    { id: 'terminal' as const, icon: Terminal, label: t('sidebar.terminal') },
+    { id: 'memory' as const, icon: Brain, label: t('sidebar.memory') },
+    { id: 'settings' as const, icon: Settings, label: t('sidebar.settings') },
+  ];
 
   return (
     <div className="flex h-full flex-col bg-[#1e1e2e] border-r border-[#313244]">

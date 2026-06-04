@@ -7,7 +7,7 @@ import {
 import { useState } from 'react';
 
 export function DiffModal() {
-  const { pendingDiffs, updateDiff, clearDiffs, showDiffModal } = useStore();
+  const { pendingDiffs, updateDiff, clearDiffs, showDiffModal, t } = useStore();
   const [currentIdx, setCurrentIdx] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [editContent, setEditContent] = useState('');
@@ -154,19 +154,19 @@ export function DiffModal() {
               onClick={handleEdit}
               className="flex items-center gap-1 px-3 py-1.5 text-[12px] bg-[#f9e2af]/10 text-[#f9e2af] rounded-lg hover:bg-[#f9e2af]/20"
             >
-              <Edit3 size={13} /> Edit
+              <Edit3 size={13} /> {t('common.rename')}
             </button>
             <button
               onClick={handleReject}
               className="flex items-center gap-1 px-3 py-1.5 text-[12px] bg-[#f38ba8]/10 text-[#f38ba8] rounded-lg hover:bg-[#f38ba8]/20"
             >
-              <XCircle size={13} /> Reject
+              <XCircle size={13} /> {t('diff.discard')}
             </button>
             <button
               onClick={handleApprove}
               className="flex items-center gap-1 px-3 py-1.5 text-[12px] bg-[#a6e3a1] text-[#1e1e2e] rounded-lg hover:bg-[#a6e3a1]/90 font-medium"
             >
-              <Check size={13} /> {editMode ? 'Save & Apply' : 'Accept'}
+              <Check size={13} /> {editMode ? t('common.save') : t('diff.apply')}
             </button>
           </div>
         </div>

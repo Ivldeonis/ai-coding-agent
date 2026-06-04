@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useStore } from '../store';
 import {
   Menu, FolderOpen, Download, Upload, Play,
@@ -10,11 +10,12 @@ export function Header() {
   const {
     currentProjectName, sidebarOpen, setSidebarOpen,
     recentProjects, setCurrentProject,
-    addDiff, bottomPanelOpen, setBottomPanelOpen,
+    addDiff, bottomPanelOpen, setBottomPanelOpen, t
   } = useStore();
 
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [isOnline] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDemoAction = () => {
     addDiff({
@@ -51,8 +52,35 @@ export default function App() {
     });
   };
 
+  const handleOpenFolder = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+    setShowProjectMenu(false);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      // In a real app, we would process the files and update the store
+      // For now, we'll just simulate setting the project name
+      const path = files[0].webkitRelativePath;
+      const projectName = path.split('/')[0] || 'Selected Project';
+      setCurrentProject(projectName, '/selected/path/' + projectName);
+      console.log('Files selected:', files.length);
+    }
+  };
+
   return (
     <header className="flex items-center h-10 bg-[#181825] border-b border-[#313244] px-2 select-none">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+        {...({ webkitdirectory: '', directory: '' } as any)}
+      />
+
       {/* Menu button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -88,7 +116,7 @@ export default function App() {
             <div className="fixed inset-0 z-40" onClick={() => setShowProjectMenu(false)} />
             <div className="absolute top-full left-0 mt-1 bg-[#1e1e2e] border border-[#313244] rounded-lg shadow-xl py-1 min-w-[250px] z-50">
               <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-[#6c7086] font-semibold">
-                Recent Projects
+                {t('header.recentProjects')}
               </div>
               {recentProjects.map((p) => (
                 <button
@@ -104,14 +132,14 @@ export default function App() {
                 </button>
               ))}
               <div className="border-t border-[#313244] my-1" />
-              <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-[#89b4fa] hover:bg-[#313244]" onClick={() => setShowProjectMenu(false)}>
-                <FolderOpen size={12} /> Open folder...
+              <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-[#89b4fa] hover:bg-[#313244]" onClick={handleOpenFolder}>
+                <FolderOpen size={12} /> {t('header.openFolder')}
               </button>
               <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-[#a6e3a1] hover:bg-[#313244]" onClick={() => setShowProjectMenu(false)}>
-                <Plus size={12} /> New project from template
+                <Plus size={12} /> {t('header.newProject')}
               </button>
               <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-[#cdd6f4] hover:bg-[#313244]" onClick={() => setShowProjectMenu(false)}>
-                <Upload size={12} /> Import ZIP
+                <Upload size={12} /> {t('header.importZip')}
               </button>
             </div>
           </>
@@ -126,12 +154,12 @@ export default function App() {
         <button
           onClick={handleDemoAction}
           className="flex items-center gap-1 px-2 py-1 text-[11px] text-[#a6e3a1] bg-[#a6e3a1]/10 rounded hover:bg-[#a6e3a1]/20 transition-colors"
-          title="Demo: Show diff"
+          title={t('header.demoDiff')}
         >
-          <Play size={11} /> Demo Diff
+          <Play size={11} /> {t('header.demoDiff')}
         </button>
 
-        <button className="p-1.5 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]" title="Export ZIP">
+        <button className="p-1.5 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]" title={t('header.exportZip')}>
           <Download size={14} />
         </button>
 
@@ -151,7 +179,7 @@ export default function App() {
         <button
           onClick={() => setBottomPanelOpen(!bottomPanelOpen)}
           className="p-1.5 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]"
-          title="Toggle terminal"
+          title={t('header.toggleTerminal')}
         >
           <Trash2 size={14} className="opacity-0" />
         </button>
