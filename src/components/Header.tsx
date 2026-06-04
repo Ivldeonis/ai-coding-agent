@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useStore } from '../store';
+import { useLanguage } from '../hooks/useLanguage';
 import {
   Menu, FolderOpen, Download, Upload, Play,
   ChevronDown, GitBranch, Wifi, WifiOff,
-  Plus, Clock, Trash2, Bot
+  Plus, Clock, Bot
 } from 'lucide-react';
 
 export function Header() {
@@ -12,6 +13,8 @@ export function Header() {
     recentProjects, setCurrentProject,
     addDiff, bottomPanelOpen, setBottomPanelOpen,
   } = useStore();
+
+  const { t } = useLanguage();
 
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [isOnline] = useState(true);
@@ -88,7 +91,7 @@ export default function App() {
             <div className="fixed inset-0 z-40" onClick={() => setShowProjectMenu(false)} />
             <div className="absolute top-full left-0 mt-1 bg-[#1e1e2e] border border-[#313244] rounded-lg shadow-xl py-1 min-w-[250px] z-50">
               <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-[#6c7086] font-semibold">
-                Recent Projects
+                Недавние проекты
               </div>
               {recentProjects.map((p) => (
                 <button
@@ -105,13 +108,13 @@ export default function App() {
               ))}
               <div className="border-t border-[#313244] my-1" />
               <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-[#89b4fa] hover:bg-[#313244]" onClick={() => setShowProjectMenu(false)}>
-                <FolderOpen size={12} /> Open folder...
+                <FolderOpen size={12} /> Открыть папку...
               </button>
               <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-[#a6e3a1] hover:bg-[#313244]" onClick={() => setShowProjectMenu(false)}>
-                <Plus size={12} /> New project from template
+                <Plus size={12} /> Новый проект из шаблона
               </button>
               <button className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-[#cdd6f4] hover:bg-[#313244]" onClick={() => setShowProjectMenu(false)}>
-                <Upload size={12} /> Import ZIP
+                <Upload size={12} /> Импортировать ZIP
               </button>
             </div>
           </>
@@ -126,12 +129,12 @@ export default function App() {
         <button
           onClick={handleDemoAction}
           className="flex items-center gap-1 px-2 py-1 text-[11px] text-[#a6e3a1] bg-[#a6e3a1]/10 rounded hover:bg-[#a6e3a1]/20 transition-colors"
-          title="Demo: Show diff"
+          title="Демо: показать diff"
         >
           <Play size={11} /> Demo Diff
         </button>
 
-        <button className="p-1.5 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]" title="Export ZIP">
+        <button className="p-1.5 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]" title="Экспортировать ZIP">
           <Download size={14} />
         </button>
 
@@ -151,9 +154,9 @@ export default function App() {
         <button
           onClick={() => setBottomPanelOpen(!bottomPanelOpen)}
           className="p-1.5 hover:bg-[#313244] rounded text-[#6c7086] hover:text-[#cdd6f4]"
-          title="Toggle terminal"
+          title="Переключить терминал"
         >
-          <Trash2 size={14} className="opacity-0" />
+          <div className="w-[14px] h-[14px] opacity-0" />
         </button>
       </div>
     </header>

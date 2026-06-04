@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">AID Coding Agent</string>
-    <string name="title_activity_main">AID Coding Agent</string>
-    <string name="package_name">com.yourcompany.aicodingagent</string>
-    <string name="custom_url_scheme">com.yourcompany.aicodingagent</string>
-</resources>

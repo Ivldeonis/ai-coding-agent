@@ -1,0 +1,36 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.yourcompany.aicodingagent.app-mergeDebugResources-24:/values-night-v8/values-night-v8.xml",
+            "map": [
+                {
+                    "source": "/data/data/com.termux/files/home/.gradle/caches/transforms-3/9df405568f161fda581952ea5fbc1473/transformed/core-splashscreen-1.0.0/res/values-night-v8/values-night-v8.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "85",
+                        "endOffsets": "136"
+                    }
+                },
+                {
+                    "source": "/data/data/com.termux/files/home/.gradle/caches/transforms-3/25374e05b58b23ed9157c7c60fa4dc0b/transformed/appcompat-1.6.1/res/values-night-v8/values-night-v8.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,125,209,293,389,491,593,687",
+                        "endColumns": "69,83,83,95,101,101,93,88",
+                        "endOffsets": "120,204,288,384,486,588,682,771"
+                    },
+                    "to": {
+                        "startLines": "3,4,5,6,7,8,9,10",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "141,211,295,379,475,577,679,773",
+                        "endColumns": "69,83,83,95,101,101,93,88",
+                        "endOffsets": "206,290,374,470,572,674,768,857"
+                    }
+                }
+            ]
+        }
+    ]
+}

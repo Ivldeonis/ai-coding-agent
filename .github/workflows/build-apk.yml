@@ -1,45 +1,198 @@
-name: Build APK
+name: 🚀 Build APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, develop ]
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+
+env:
+  NODE_VERSION: '18'
+  JAVA_VERSION: '17'
 
 jobs:
-  build:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build_number: ${{ steps.version.outputs.build_number }}
     
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate version
+        id: version
+        run: |
+          VERSION=$(grep '"version"' package.json | head -1 | sed 's/.*: "\(.*\)".*/\1/')
+          BUILD_NUMBER=${{ github.run_number }}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "build_number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          echo "📦 Version: ${VERSION} | Build: ${BUILD_NUMBER}"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build-type: [debug]
+        include:
+          - build-type: debug
+            gradle-task: assembleDebug
+            artifact-path: android/app/build/outputs/apk/debug/app-debug.apk
+            artifact-name: app-debug-${{ needs.prepare.outputs.version }}-${{ needs.prepare.outputs.build_number }}.apk
     
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📋 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: 🤖 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 📚 Install npm dependencies
+        run: |
+          npm ci
+          npm install expo-file-system expo-document-picker expo-permissions
+
+      - name: 🔍 Lint check (optional)
+        continue-on-error: true
+        run: npm run lint 2>/dev/null || echo "Lint skipped"
+
+      - name: 🔨 Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew ${{ matrix.gradle-task }} \
+            --no-daemon \
+            --parallel \
+            -Dorg.gradle.jvmargs="-Xmx2048m"
+
+      - name: 📦 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-path }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: 📊 Generate build info
+        run: |
+          echo "## 📱 Build Info" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.prepare.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Number**: ${{ needs.prepare.outputs.build_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Type**: ${{ matrix.build-type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  build-release:
+    needs: prepare
+    runs-on: ubuntu-latest
+    if: github.event.inputs.build_type == 'release' || startsWith(github.ref, 'refs/tags/')
     
-    - name: Install dependencies
-      run: npm install
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📋 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: 🤖 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 📚 Install npm dependencies
+        run: |
+          npm ci
+          npm install expo-file-system expo-document-picker expo-permissions
+
+      - name: 🔨 Build Release APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            --no-daemon \
+            --parallel \
+            -Dorg.gradle.jvmargs="-Xmx2048m"
+
+      - name: 📦 Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-${{ needs.prepare.outputs.version }}-${{ needs.prepare.outputs.build_number }}.apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 90
+
+      - name: 🏷️ Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: android/app/build/outputs/apk/release/app-release.apk
+          draft: false
+          prerelease: false
+          body: |
+            ## Release ${{ needs.prepare.outputs.version }}
+            
+            ### Changes
+            - Built from commit: ${{ github.sha }}
+            - Build number: ${{ needs.prepare.outputs.build_number }}
+            
+            ### Installation
+            Download the APK and install it on your Android device.
+            
+            ```bash
+            adb install -r app-release.apk
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    if: always()
     
-    - name: Build React app
-      run: npm run build
-    
-    - name: Setup Capacitor
-      run: |
-        npm install @capacitor/core @capacitor/android @capacitor/cli
-        npx cap init "AI Coding Agent" "com.yourcompany.aicodingagent"
-        # Видаляємо стару android папку, якщо вона є
-        rm -rf android
-        npx cap add android
-        npx cap sync
-    
-    - name: Build APK
-      run: |
-        cd android
-        chmod +x gradlew
-        ./gradlew assembleDebug
-    
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: android/app/build/outputs/apk/debug/app-debug.apk
+    steps:
+      - name: 📧 Check build status
+        run: |
+          if [ "${{ needs.build.result }}" = "success" ]; then
+            echo "✅ APK build succeeded!"
+            echo "📦 Version: ${{ needs.prepare.outputs.version }}"
+            echo "🔢 Build: ${{ needs.prepare.outputs.build_number }}"
+          else
+            echo "❌ APK build failed!"
+            exit 1
+          fi
