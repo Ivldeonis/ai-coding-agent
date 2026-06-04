@@ -1,0 +1,13 @@
+{
+  "appId": "com.yourcompany.aicodingagent",
+  "appName": "AID Coding Agent",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}
